@@ -55,7 +55,7 @@ def main():
     model = CalculatorModel(voc_size, char_to_index, index_to_char)
     optimizer = Adam(model.parameters(), lr=1e-3)
     criterion = CrossEntropyLoss()
-    training_loader = DataLoader(AdditionDataset(x_train, y_train), batch_size=128, drop_last=True)
+    training_loader = DataLoader(AdditionDataset(x_train, y_train), batch_size=16, drop_last=True)
 
     for epoch in range(50):
         model.train()

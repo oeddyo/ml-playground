@@ -3,7 +3,7 @@ from torch import nn
 
 
 class Encoder(nn.Module):
-    def __init__(self, voc_size, num_embeddings=100, num_hidden=100, num_layers=3):
+    def __init__(self, voc_size, num_embeddings, num_hidden, num_layers=3):
         super().__init__()
         self.emb = nn.Embedding(voc_size, num_embeddings)
         self.lstm = nn.LSTM(num_embeddings, num_hidden, num_layers=num_layers, batch_first=True, dropout=0.5)
@@ -15,7 +15,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, voc_size, num_embeddings=100, num_hidden=100, num_layers=3):
+    def __init__(self, voc_size, num_embeddings, num_hidden, num_layers=3):
         super().__init__()
         self.emb = nn.Embedding(voc_size, num_embeddings)
         self.lstm = nn.LSTM(num_embeddings, num_hidden, num_layers, batch_first=True, dropout=0.5)
@@ -31,8 +31,8 @@ class Decoder(nn.Module):
 class CalculatorModel(nn.Module):
     def __init__(self, voc_size, char_to_index, index_to_char):
         super().__init__()
-        self.encoder = Encoder(voc_size, num_embeddings=16, num_hidden=128)
-        self.decoder = Decoder(voc_size, num_embeddings=16,  num_hidden=128)
+        self.encoder = Encoder(voc_size, num_embeddings=100, num_hidden=128)
+        self.decoder = Decoder(voc_size, num_embeddings=100,  num_hidden=128)
         self.char_to_index = char_to_index
         self.index_to_char = index_to_char
 
@@ -46,7 +46,9 @@ class CalculatorModel(nn.Module):
         cur = [self.char_to_index["_"]]
         h = self.encoder(x)
 
-        while True:
+        max_cnt = 10
+        while max_cnt > 0:
+            max_cnt -= 1
             t = torch.tensor(cur)
             output = self.decoder(t, h)
 
