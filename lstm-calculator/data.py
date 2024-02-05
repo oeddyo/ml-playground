@@ -1,5 +1,5 @@
 import numpy as np
-
+from torch.utils.data import Dataset, DataLoader
 
 def load_data():
     lines = open("addition.txt", 'r').readlines()
@@ -44,8 +44,26 @@ def load_data():
     x_val = xs[train_cutoff:, ]
     y_val = ys[train_cutoff:, ]
 
-    return (x_train, y_train), (x_val, y_val)
+    return (x_train, y_train), (x_val, y_val), (char_to_index, index_to_char)
 
 
-(x, y), (x_val, y_val) = load_data()
-print(x.shape)
+class AdditionDataset(Dataset):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __getitem__(self, item):
+        return self.x[item], self.y[item]
+
+    def __len__(self):
+        return len(self.x)
+
+
+(x_train, y_train), _, (char_to_index, index_to_char) = load_data()
+training_loader = DataLoader(AdditionDataset(x_train, y_train), batch_size=64, drop_last=True)
+
+for x, y in training_loader:
+    print([index_to_char[i] for i in x[0].tolist()])
+    print([index_to_char[i] for i in y[0].tolist()])
+    break
+
