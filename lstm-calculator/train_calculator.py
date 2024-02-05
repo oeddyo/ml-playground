@@ -21,6 +21,7 @@ def get_device():
 
 
 def compute_accuracy(model, x_val, y_val, index_to_char, show_sample=False):
+    model.eval()
     eq = 0
     tot = 0
     for i in range(x_val.shape[0]):
@@ -49,9 +50,9 @@ def main():
     model = CalculatorModel(voc_size, char_to_index, index_to_char)
     optimizer = Adam(model.parameters(), lr=1e-3)
     criterion = CrossEntropyLoss()
-    training_loader = DataLoader(AdditionDataset(x_train, y_train), batch_size=64, drop_last=True)
+    training_loader = DataLoader(AdditionDataset(x_train, y_train), batch_size=16, drop_last=True)
 
-    for epoch in range(10):
+    for epoch in range(25):
         model.train()
         progress_bar = tqdm(training_loader, desc=f"Epoch {epoch + 1}")
 
