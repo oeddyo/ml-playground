@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch import nn
 
@@ -29,12 +30,33 @@ class Decoder(nn.Module):
 
 
 class CalculatorModel(nn.Module):
-    def __init__(self, voc_size):
+    def __init__(self, voc_size, char_to_index, index_to_char):
         super().__init__()
         self.encoder = Encoder(voc_size)
         self.decoder = Decoder(voc_size)
+        self.char_to_index = char_to_index
+        self.index_to_char = index_to_char
 
     def forward(self, x, t):
         h = self.encoder(x)
-
         return self.decoder(t, h)
+
+    def sample(self, x_vec):
+        x = torch.tensor(x_vec)
+
+        cur = [self.char_to_index["_"]]
+        h = self.encoder(x)
+
+        while True:
+            t = torch.tensor(cur)
+            output = self.decoder(t, h)
+
+            prob = torch.softmax(output, dim=1)[-1]
+
+            next_char_index = torch.multinomial(prob, num_samples=1).item()
+            if self.index_to_char[next_char_index] == ' ':
+                break
+            cur.append(next_char_index)
+
+        cur = [self.index_to_char[i] for i in cur[1:]]
+        return "".join(cur)
