@@ -4,7 +4,7 @@ from torch import nn
 
 
 class Encoder(nn.Module):
-    def __init__(self, voc_size, num_embeddings=100, num_layers=2):
+    def __init__(self, voc_size, num_embeddings=100, num_layers=3):
         super().__init__()
         self.emb = nn.Embedding(voc_size, num_embeddings)
         self.lstm = nn.LSTM(num_embeddings, num_embeddings, num_layers=num_layers, batch_first=True)
@@ -16,7 +16,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, voc_size, num_embeddings=100, num_layers=2):
+    def __init__(self, voc_size, num_embeddings=100, num_layers=3):
         super().__init__()
         self.emb = nn.Embedding(voc_size, num_embeddings)
         self.lstm = nn.LSTM(num_embeddings, num_embeddings, num_layers, batch_first=True)

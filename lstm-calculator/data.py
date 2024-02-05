@@ -1,6 +1,7 @@
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
+
 def load_data():
     lines = open("addition.txt", 'r').readlines()
 
@@ -24,7 +25,8 @@ def load_data():
 
     xs, ys = [], []
     for q, a in zip(questions, answers):
-        q_n = [char_to_index[c] for c in q]
+        # reverse question to make accuracy go up by quite a bit
+        q_n = [char_to_index[c] for c in q][::-1]
         a_n = [char_to_index[c] for c in a]
         xs.append(q_n)
         ys.append(a_n)
@@ -66,4 +68,3 @@ for x, y in training_loader:
     print([index_to_char[i] for i in x[0].tolist()])
     print([index_to_char[i] for i in y[0].tolist()])
     break
-

@@ -32,8 +32,12 @@ def compute_accuracy(model, x_val, y_val, index_to_char, show_sample=False):
         if show_sample and i < 3:
             print('sampled results: ', computed, v)
 
-        if all([x.isnumeric() for x in computed]) and int(computed) == v:
-            eq += 1
+        try:
+            computed_int = int(computed)
+            if computed_int == v:
+                eq += 1
+        except ValueError:
+            pass
         tot += 1
 
     print('accuracy = ', eq * 1.0 / tot)
@@ -67,7 +71,7 @@ def main():
 
             optimizer.step()
             progress_bar.set_postfix({"loss": loss.item(), "norm": norm.item()})
-        compute_accuracy(model, x_val, y_val, index_to_char)
+        compute_accuracy(model, x_val, y_val, index_to_char, True)
 
         # print(model.sample("99+21"))
         # now for each in validation, sample and try to compare results
