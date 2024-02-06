@@ -57,7 +57,7 @@ def main():
     criterion = CrossEntropyLoss()
     training_loader = DataLoader(AdditionDataset(x_train, y_train), batch_size=16, drop_last=True)
 
-    for epoch in range(50):
+    for epoch in range(100):
         model.train()
         progress_bar = tqdm(training_loader, desc=f"Epoch {epoch + 1}")
 
