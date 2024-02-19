@@ -10,7 +10,7 @@ class Encoder(nn.Module):
         self.voc_size = voc_size
 
         self.emb = nn.Embedding(voc_size, emb_hidden)
-        self.lstm = nn.LSTM(emb_hidden, lstm_hidden, 2)
+        self.lstm = nn.LSTM(emb_hidden, lstm_hidden, 2, batch_first=True)
 
     def forward(self, x):
         x = self.emb(x)
@@ -23,11 +23,12 @@ class Decoder(nn.Module):
         super().__init__()
 
         self.emb = nn.Embedding(voc_size, emb_hidden)
-        self.lstm = nn.LSTM(emb_hidden, lstm_hidden, 2)
+        self.lstm = nn.LSTM(emb_hidden, lstm_hidden, 2, batch_first=True)
 
-    def forward(self, prev_h, x):
-        zero_c = torch.zeros_like(prev_h)
-        output, (h, c) = self.lstm(x, (zero_c, prev_h))
+    def forward(self, x, h):
+        x = self.emb(x)
+        c = torch.zeros_like(h)
+        output, (h, c) = self.lstm(x, (h, c))
         return output, (h, c)
 
 
@@ -42,5 +43,5 @@ class Seq2Seq(nn.Module):
 
         # target: [seq, batch_size]
 
-        output = self.decoder(target, (h, torch.zeros_like(h)))
+        output = self.decoder(target, h)
         return output
