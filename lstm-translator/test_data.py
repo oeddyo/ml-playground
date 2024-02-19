@@ -1,5 +1,5 @@
 import unittest
-from translation_data import TranslationData
+from data import TranslationData
 
 
 class TestTranslationData(unittest.TestCase):
