@@ -1,6 +1,6 @@
 import spacy
-from datasets import load_dataset, get_dataset_config_names, load_dataset_builder, get_dataset_split_names
-from torchtext.vocab import build_vocab_from_iterator
+from datasets import load_dataset
+from torchtext.vocab import build_vocab_from_iterator, Vocab
 
 # define parameters
 MIN_FREQ = 1
@@ -26,7 +26,7 @@ zh_nlp = spacy.load("zh_core_web_sm")
 en_nlp = spacy.load("en_core_web_sm")
 
 
-def tokenize_example(example):
+def do_tokenize(example):
     en_tokens = [SOS_TOKEN] + [t.text for t in en_nlp.tokenizer(example['translation']['en'])][:MAX_SENTENCE_LEN] + [
         EOS_TOKEN]
     zh_tokens = [SOS_TOKEN] + [t.text for t in zh_nlp.tokenizer(example['translation']['zh'])][:MAX_SENTENCE_LEN] + [
@@ -36,7 +36,14 @@ def tokenize_example(example):
     return {"en_tokens": en_tokens, "zh_tokens": zh_tokens}
 
 
-training_set = training_set.map(tokenize_example)
+def do_vectorize(example, en_vocab: Vocab, zh_vocab: Vocab):
+    return {
+        "en_ids": en_vocab.lookup_indices(example["en_tokens"]),
+        "zh_ids": zh_vocab.lookup_indices(example["zh_tokens"])
+    }
+
+
+training_set = training_set.map(do_tokenize)
 
 print(type(training_set))
 
@@ -49,5 +56,8 @@ zh_vocab = build_vocab_from_iterator(training_set["zh_tokens"], min_freq=MIN_FRE
 en_vocab.set_default_index(0)
 zh_vocab.set_default_index(0)
 
+training_set = training_set.map(do_vectorize, fn_kwargs={"en_vocab": en_vocab, "zh_vocab": zh_vocab})
 
-print(zh_vocab.lookup_indices(["牛马", "不存在的"]))
+training_set = training_set.with_format(type="torch", columns=["en_ids", "zh_ids"], output_all_columns=True)
+
+print(training_set[0])
