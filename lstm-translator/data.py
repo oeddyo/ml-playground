@@ -3,6 +3,7 @@ from datasets import load_dataset
 from torch.utils.data import Dataset, DataLoader
 from torchtext.vocab import build_vocab_from_iterator
 import torch.nn as nn
+import torch
 
 UNKNOWN_TOKEN = "<UNK>"
 PADDING_TOKEN = "<PAD>"
@@ -46,7 +47,7 @@ class TranslationData:
         ]
 
         # download dataset
-        training_set = load_dataset("wmt19", "zh-en", split="train[:100]", trust_remote_code=True)
+        training_set = load_dataset("wmt19", "zh-en", split="train[:10000]", trust_remote_code=True)
         validation_set = load_dataset("wmt19", "zh-en", split="validation[:100]", trust_remote_code=True)
 
         self.src_nlp = spacy.load("en_core_web_sm")
@@ -79,8 +80,14 @@ class TranslationData:
 
     def get_training(self):
         src_voc_size, dest_voc_size = len(self.src_vocab), len(self.dest_vocab)
-        training_loader = DataLoader(TDataset(self.training_set), batch_size=64, collate_fn=collate_fn)
+        training_loader = DataLoader(TDataset(self.training_set), batch_size=16, collate_fn=collate_fn)
         return src_voc_size, dest_voc_size, training_loader
+
+    def get_tensor(self, s):
+        tokens = [SOS_TOKEN] + [t.text for t in self.src_nlp.tokenizer(s)] + [EOS_TOKEN]
+        indexes = self.src_vocab.lookup_indices(tokens)
+        res = torch.LongTensor([indexes])
+        return res
 
     def _tokenize(self, example):
         en_tokens = [t.text for t in self.src_nlp.tokenizer(example['translation'][self.src_lang])][
