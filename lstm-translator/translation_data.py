@@ -30,8 +30,8 @@ class TranslationData:
         self.src_nlp = spacy.load("en_core_web_sm")
         self.dest_nlp = spacy.load("zh_core_web_sm")
 
-        training_set = training_set.map(self.do_tokenize)
-        validation_set = validation_set.map(self.do_tokenize)
+        training_set = training_set.map(self._tokenize)
+        validation_set = validation_set.map(self._tokenize)
 
         self.src_vocab = build_vocab_from_iterator(training_set["src_tokens"], min_freq=self.min_freq,
                                                    specials=self.special_tokens)
@@ -41,12 +41,21 @@ class TranslationData:
         self.src_vocab.set_default_index(0)
         self.dest_vocab.set_default_index(0)
 
-        training_set = training_set.map(self.do_vectorize)
-        validation_set = validation_set.map(self.do_vectorize)
+        columns_to_torch = ["src_ids", "dest_ids"]
+        self.training_set = training_set.map(self._vectorize).with_format(
+            type="torch", columns=columns_to_torch, output_all_columns=True
+        )
+        self.validation_set = validation_set.map(self._vectorize).with_format(
+            type="torch", columns=columns_to_torch, output_all_columns=True
+        )
 
-        print(training_set[0])
+    def get_vocab(self):
+        return self.src_vocab, self.dest_vocab
 
-    def do_tokenize(self, example):
+    def get_datasets(self):
+        return self.training_set, self.validation_set
+
+    def _tokenize(self, example):
         en_tokens = [t.text for t in self.src_nlp.tokenizer(example['translation'][self.src_lang])][
                     :self.max_sentence_len]
         zh_tokens = [t.text for t in self.dest_nlp.tokenizer(example['translation'][self.dest_lang])][
@@ -59,7 +68,7 @@ class TranslationData:
             "dest_tokens": [self.sos_token] + zh_tokens + [self.eos_token]
         }
 
-    def do_vectorize(self, example):
+    def _vectorize(self, example):
         return {
             "src_ids": self.src_vocab.lookup_indices(example["src_tokens"]),
             "dest_ids": self.dest_vocab.lookup_indices(example["dest_tokens"])
@@ -67,3 +76,4 @@ class TranslationData:
 
 
 t = TranslationData(min_freq=1)
+print(t.get_datasets()[0][0])
