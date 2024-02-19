@@ -17,6 +17,8 @@ def train_fn(model, data_loader):
         print("so src = ", src.shape, dest.shape)
 
         output = model(src, dest)
+        print(output[0].shape)
 
 
 train_fn(model, training_data_loader)
+
