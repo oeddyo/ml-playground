@@ -24,12 +24,14 @@ class Decoder(nn.Module):
 
         self.emb = nn.Embedding(voc_size, emb_hidden)
         self.lstm = nn.LSTM(emb_hidden, lstm_hidden, 2, batch_first=True)
+        self.affine = nn.Linear(emb_hidden, voc_size)
 
     def forward(self, x, h):
         x = self.emb(x)
         c = torch.zeros_like(h)
-        output, (h, c) = self.lstm(x, (h, c))
-        return output, (h, c)
+        x, (h, c) = self.lstm(x, (h, c))
+        x = self.affine(x)
+        return x
 
 
 class Seq2Seq(nn.Module):
