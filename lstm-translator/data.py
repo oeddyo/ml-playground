@@ -10,6 +10,27 @@ EOS_TOKEN = "<EOS>"
 SOS_TOKEN = "<SOS>"
 
 
+class TDataset(Dataset):
+
+    def __init__(self, translation_data):
+        self.translation_data = translation_data
+
+    def __getitem__(self, item):
+        return self.translation_data[item]
+
+    def __len__(self):
+        return len(self.translation_data)
+
+
+def collate_fn(batch):
+    batch_src = [e["src_ids"] for e in batch]
+    batch_src = nn.utils.rnn.pad_sequence(batch_src, batch_first=True, padding_value=1)
+
+    batch_dest = [e["dest_ids"] for e in batch]
+    batch_dest = nn.utils.rnn.pad_sequence(batch_dest, batch_first=True, padding_value=1)
+    return batch_src, batch_dest
+
+
 class TranslationData:
     def __init__(self, min_freq=1, max_sentence_len=200, src_lang="en", dest_lang="zh"):
         self.min_freq = min_freq
@@ -53,8 +74,13 @@ class TranslationData:
     def get_vocab(self):
         return self.src_vocab, self.dest_vocab
 
-    def get_datasets(self):
+    def _get_datasets(self):
         return self.training_set, self.validation_set
+
+    def get_training(self):
+        src_voc_size, dest_voc_size = len(self.src_vocab), len(self.dest_vocab)
+        training_loader = DataLoader(TDataset(self.training_set), batch_size=64, collate_fn=collate_fn)
+        return src_voc_size, dest_voc_size, training_loader
 
     def _tokenize(self, example):
         en_tokens = [t.text for t in self.src_nlp.tokenizer(example['translation'][self.src_lang])][
@@ -74,33 +100,3 @@ class TranslationData:
             "src_ids": self.src_vocab.lookup_indices(example["src_tokens"]),
             "dest_ids": self.dest_vocab.lookup_indices(example["dest_tokens"])
         }
-
-
-class TDataset(Dataset):
-
-    def __init__(self, translation_data):
-        self.translation_data = translation_data
-
-    def __getitem__(self, item):
-        return self.translation_data[item]
-
-    def __len__(self):
-        return len(self.translation_data)
-
-
-training_set, validation_set = TranslationData().get_datasets()
-
-
-def collate_fn(batch):
-    batch_src = [e["src_ids"] for e in batch]
-    batch_src = nn.utils.rnn.pad_sequence(batch_src, batch_first=True, padding_value=1)
-
-    batch_dest = [e["dest_ids"] for e in batch]
-    batch_dest = nn.utils.rnn.pad_sequence(batch_dest, batch_first=True, padding_value=1)
-    return batch_src, batch_dest
-
-
-tl = DataLoader(TDataset(training_set), batch_size=64, collate_fn=collate_fn)
-
-for b in tl:
-    print(b[0].shape, b[1].shape)

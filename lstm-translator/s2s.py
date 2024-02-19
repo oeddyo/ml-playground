@@ -27,19 +27,20 @@ class Decoder(nn.Module):
 
     def forward(self, prev_h, x):
         zero_c = torch.zeros_like(prev_h)
-        output, _ = self.lstm(x, (zero_c, prev_h))
-        return output
+        output, (h, c) = self.lstm(x, (zero_c, prev_h))
+        return output, (h, c)
 
 
 class Seq2Seq(nn.Module):
-    def __init__(self):
+    def __init__(self, src_voc_size, dest_voc_size):
         super().__init__()
-        self.encoder = Encoder()
-        self.decoder = Decoder()
+        self.encoder = Encoder(voc_size=src_voc_size)
+        self.decoder = Decoder(voc_size=dest_voc_size)
 
     def forward(self, source, target):
         h = self.encoder(source)
 
+        # target: [seq, batch_size]
+
         output = self.decoder(target, (h, torch.zeros_like(h)))
         return output
-       
