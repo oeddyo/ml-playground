@@ -40,4 +40,4 @@ if __name__ == '__main__':
     for epoch in range(10):
         train_loss = train_fn(model, training_data_loader, device)
 
-        print(train_loss)
+        print(f"\tTrain Loss: {train_loss:7.3f} | Train PPL: {np.exp(train_loss):7.3f}")
