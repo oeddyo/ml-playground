@@ -23,12 +23,6 @@ LANGUAGE_FILE = {
 }
 
 
-class LanguagePair:
-    def __init__(self, src_text, dest_text):
-        self.src_text = src_text
-        self.dest_text = dest_text
-
-
 def read_language_files(src_file: str, dest_file: str) -> List[Tuple[str, str]]:
     """
     read both source language file and dest language file
@@ -45,13 +39,13 @@ def read_language_files(src_file: str, dest_file: str) -> List[Tuple[str, str]]:
     return res
 
 
-def create_voc(nlp: Language, lines: List[str]) -> Vocab:
+def create_voc(nlp: Language, lines: List[str], max_line_length=500) -> Vocab:
     # use nlp to tokenize each line, then create voc
     token_list = []
     for line in lines:
-        token_list.append([t.text for t in nlp.tokenizer(line)])
-
-    print("output => ", token_list[0], len(token_list))
+        # truncate sentences that are too long
+        line = line[:max_line_length]
+        token_list.append([SOS_TOKEN] + [t.text for t in nlp.tokenizer(line)] + [EOS_TOKEN])
 
     vocab = torchtext.vocab.build_vocab_from_iterator(
         token_list,
@@ -59,6 +53,22 @@ def create_voc(nlp: Language, lines: List[str]) -> Vocab:
         specials=SPECIAL_TOKENS
     )
     return vocab
+
+
+class TranslationExample:
+    def __init__(self, src_text: str, dest_text: str, src_tensor, dest_tensor):
+        self.src_text = src_text
+        self.dest_text = dest_text
+        self.src_tensor = src_tensor
+        self.dest_tensor = dest_tensor
+
+
+def create_tensor(vocab: Vocab, nlp: Language, text: str):
+
+    indices = vocab.lookup_indices([t.text for t in nlp.tokenizer(text)])
+
+    return
+
 
 
 class DataImporter:
@@ -73,21 +83,21 @@ class DataImporter:
         src_nlp = spacy.load(NLP_MAP[src_lang])
         dest_nlp = spacy.load(NLP_MAP[dest_lang])
 
-        all_pairs = read_language_files(src_file, dest_file)
-        random.shuffle(all_pairs)
+        text_pairs = read_language_files(src_file, dest_file)
+        random.shuffle(text_pairs)
 
-        n_pairs = len(all_pairs)
+        n_pairs = len(text_pairs)
         train_idx = int(0.8 * n_pairs)
         valid_idx = int(0.9 * n_pairs)
 
-        train_pairs = all_pairs[:train_idx]
+        train_text_pairs = text_pairs[:train_idx]
 
-        # build vocabulary
-        self.src_voc = create_voc(src_nlp, [p[0] for p in train_pairs])
-        self.dest_voc = create_voc(dest_nlp, [p[1] for p in train_pairs])
+        # build vocabulary only on training set
+        self.src_voc = create_voc(src_nlp, [p[0] for p in train_text_pairs])
+        self.dest_voc = create_voc(dest_nlp, [p[1] for p in train_text_pairs])
 
-        valid_pairs = all_pairs[train_idx: valid_idx]
-        test_pairs = all_pairs[valid_idx:]
+        valid_pairs = text_pairs[train_idx: valid_idx]
+        test_pairs = text_pairs[valid_idx:]
 
         # split
 
