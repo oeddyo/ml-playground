@@ -15,9 +15,6 @@ PADDING_TOKEN = "<PAD>"
 EOS_TOKEN = "<EOS>"
 SOS_TOKEN = "<SOS>"
 
-# configuration
-n_epoch = 20
-
 
 class TDataset(Dataset):
 
@@ -100,14 +97,14 @@ class TranslationData:
     def _tokenize(self, example):
         en_tokens = [t.text for t in self.src_nlp.tokenizer(example['translation'][self.src_lang])][
                     :self.max_sentence_len]
-        zh_tokens = [t.text for t in self.dest_nlp.tokenizer(example['translation'][self.dest_lang])][
+        dest_tokens = [t.text for t in self.dest_nlp.tokenizer(example['translation'][self.dest_lang])][
                     :self.max_sentence_len]
 
         # if you return fields here, the map function on Dataset will add them to a new row. If you assign the returned
         # dataset then you have a new dataset with the new fields you want
         return {
             "src_tokens": [SOS_TOKEN] + en_tokens + [EOS_TOKEN],
-            "dest_tokens": [SOS_TOKEN] + zh_tokens + [EOS_TOKEN]
+            "dest_tokens": [SOS_TOKEN] + dest_tokens + [EOS_TOKEN]
         }
 
     def _vectorize(self, example):
@@ -233,9 +230,12 @@ def select_device():
 
 
 if __name__ == '__main__':
+    # configurations
+    n_epoch = 20
+
     device = select_device()
 
-    td = TranslationData(min_freq=1)
+    td = TranslationData(min_freq=2)
 
     src_voc_size, dest_voc_size, training_data_loader = td.get_training()
     model = Seq2Seq(src_voc_size, dest_voc_size).to(device)
