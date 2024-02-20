@@ -53,7 +53,7 @@ class TranslationData:
         ]
 
         # download dataset
-        training_set = load_dataset("bentrevett/multi30k", split="train[:5]", trust_remote_code=True)
+        training_set = load_dataset("bentrevett/multi30k", split="train", trust_remote_code=True)
         validation_set = load_dataset("bentrevett/multi30k", split="validation[:100]", trust_remote_code=True)
 
         self.src_nlp = spacy.load("de_core_news_sm")
@@ -88,6 +88,17 @@ class TranslationData:
         src_voc_size, dest_voc_size = len(self.src_vocab), len(self.dest_vocab)
         training_loader = DataLoader(TDataset(self.training_set), batch_size=self.batch_size, collate_fn=collate_fn)
         return src_voc_size, dest_voc_size, training_loader
+
+    def get_samples(self):
+        r = []
+        for i in range(10):
+            src_text = self.validation_set[i][self.src_lang]
+            dest_text = self.validation_set[i][self.dest_lang]
+            r.append((src_text, dest_text))
+        return r
+
+
+
 
     def get_validation(self):
         return DataLoader(TDataset(self.validation_set), batch_size=self.batch_size, collate_fn=collate_fn)
@@ -254,7 +265,7 @@ if __name__ == '__main__':
 
     device = select_device()
 
-    td = TranslationData(min_freq=2, src_lang="de")
+    td = TranslationData(min_freq=2, src_lang="de", batch_size=128)
 
     src_voc_size, dest_voc_size, training_data_loader = td.get_training()
     validation_data_loader = td.get_validation()
@@ -271,6 +282,7 @@ if __name__ == '__main__':
         print(f"\tTrain Loss: {train_loss:7.3f} | Train PPL: {np.exp(train_loss):7.3f}")
         print(f"\tValid Loss: {valid_loss:7.3f} | Valid PPL: {np.exp(valid_loss):7.3f}")
 
-        input_tensor = td.get_tensor("Ein Mann sieht sich einen Film an").to(device)
-
-        print(translate_sentence(model.encoder, model.decoder, input_tensor, td.dest_vocab, device))
+        for (sample_src_text, sample_dest_text) in td.get_samples():
+            input_tensor = td.get_tensor(sample_src_text).to(device)
+            translated = translate_sentence(model.encoder, model.decoder, input_tensor, td.dest_vocab, device)
+            print(f"\t translating: {sample_dest_text} - {translated}")
