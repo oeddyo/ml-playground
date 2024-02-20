@@ -135,12 +135,12 @@ class Encoder(nn.Module):
 
         self.dropout = nn.Dropout(0.5)
         self.emb = nn.Embedding(voc_size, emb_hidden)
-        self.rnn = nn.LSTM(emb_hidden, hidden_size, 2, batch_first=True, dropout=0.5)
+        self.rnn = nn.GRU(emb_hidden, hidden_size, 1, batch_first=True, dropout=0.5)
 
     def forward(self, x):
         x = self.dropout(self.emb(x))
-        _, (h, c) = self.rnn(x)
-        return h, c
+        _, h = self.rnn(x)
+        return h
 
 
 class Decoder(nn.Module):
@@ -148,11 +148,11 @@ class Decoder(nn.Module):
         super().__init__()
 
         self.emb = nn.Embedding(dest_voc_size, emb_hidden)
-        self.rnn = nn.LSTM(emb_hidden + hidden_size, hidden_size, 2, batch_first=True, dropout=0.5)
+        self.rnn = nn.GRU(emb_hidden + hidden_size, hidden_size, 1, batch_first=True, dropout=0.5)
         self.affine = nn.Linear(hidden_size + hidden_size, dest_voc_size)
         self.dropout = nn.Dropout(0.5)
 
-    def forward(self, x, h, c):
+    def forward(self, x, h):
         # [batch, seq_len, emb_hidden]
         x = self.dropout(self.emb(x))
 
@@ -160,13 +160,13 @@ class Decoder(nn.Module):
         h_repeat = h[-1].unsqueeze(1).repeat(1, seq_len, 1)
         x = torch.cat((x, h_repeat), dim=2)
 
-        x, (r_h, r_c) = self.rnn(x, (h, c))
+        x, r_h = self.rnn(x, h)
 
         # concat 2
         x = torch.cat((x, h_repeat), dim=2)
 
         x = self.affine(x)
-        return x, (r_h, r_c)
+        return x, r_h
 
 
 class Seq2Seq(nn.Module):
@@ -177,7 +177,7 @@ class Seq2Seq(nn.Module):
         self.dest_voc_size = dest_voc_size
 
     def forward(self, source, target, teacher_forcing_ratio=0.5, device=torch.device("cpu")):
-        h, c = self.encoder(source)
+        h = self.encoder(source)
 
         batch_size, target_length = target.shape
 
@@ -188,7 +188,7 @@ class Seq2Seq(nn.Module):
         for i in range(1, target_length):
             input = input.view(-1, 1)
 
-            output, (h, c) = self.decoder(input, h, c)
+            output, h = self.decoder(input, h)
             # Squeeze the output to remove the sequence length dimension
             output = output.squeeze(1)
             outputs[:, i, :] = output
@@ -215,7 +215,7 @@ def train_fn(model, data_loader, device):
         loss = loss_func(output.transpose(1, 2), dest[:, 1:])
         losses.append(loss.item())
 
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
 
         loss.backward()
         optimizer.step()
@@ -242,13 +242,13 @@ def translate_sentence(encoder, decoder, src_tensor, dest_vocab: Vocab, device):
     model.eval()
 
     with torch.no_grad():
-        h, c = encoder(src_tensor)
+        h = encoder(src_tensor)
 
         inputs = [3]
 
         for i in range(10):
             x = torch.tensor([inputs]).to(device)
-            x, (h, c) = decoder(x, h, c)
+            x, h = decoder(x, h)
             new_idx = x[0, -1].argmax()
             inputs.append(new_idx.item())
             if new_idx == 2:
@@ -274,7 +274,7 @@ if __name__ == '__main__':
 
     device = select_device()
 
-    td = TranslationData(min_freq=2, src_lang="de", batch_size=512)
+    td = TranslationData(min_freq=2, src_lang="de", batch_size=128)
 
     src_voc_size, dest_voc_size, training_data_loader = td.get_training()
     validation_data_loader = td.get_validation()
