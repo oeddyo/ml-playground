@@ -38,7 +38,7 @@ def collate_fn(batch):
 
 
 class TranslationData:
-    def __init__(self, min_freq=1, max_sentence_len=200, src_lang="en", dest_lang="zh"):
+    def __init__(self, min_freq=1, max_sentence_len=200, src_lang="de", dest_lang="en"):
         self.min_freq = min_freq
         self.max_sentence_len = max_sentence_len
         self.src_lang = src_lang
@@ -52,11 +52,11 @@ class TranslationData:
         ]
 
         # download dataset
-        training_set = load_dataset("wmt19", "zh-en", split="train[:5]", trust_remote_code=True)
-        validation_set = load_dataset("wmt19", "zh-en", split="validation[:100]", trust_remote_code=True)
+        training_set = load_dataset("bentrevett/multi30k", split="train[:5]", trust_remote_code=True)
+        validation_set = load_dataset("bentrevett/multi30k", split="validation[:100]", trust_remote_code=True)
 
-        self.src_nlp = spacy.load("en_core_web_sm")
-        self.dest_nlp = spacy.load("zh_core_web_sm")
+        self.src_nlp = spacy.load("de_core_news_sm")
+        self.dest_nlp = spacy.load("en_core_web_sm")
 
         training_set = training_set.map(self._tokenize)
         validation_set = validation_set.map(self._tokenize)
@@ -95,10 +95,10 @@ class TranslationData:
         return res
 
     def _tokenize(self, example):
-        en_tokens = [t.text for t in self.src_nlp.tokenizer(example['translation'][self.src_lang])][
+        en_tokens = [t.text for t in self.src_nlp.tokenizer(example[self.src_lang])][
                     :self.max_sentence_len]
-        dest_tokens = [t.text for t in self.dest_nlp.tokenizer(example['translation'][self.dest_lang])][
-                    :self.max_sentence_len]
+        dest_tokens = [t.text for t in self.dest_nlp.tokenizer(example[self.dest_lang])][
+                      :self.max_sentence_len]
 
         # if you return fields here, the map function on Dataset will add them to a new row. If you assign the returned
         # dataset then you have a new dataset with the new fields you want
@@ -235,7 +235,7 @@ if __name__ == '__main__':
 
     device = select_device()
 
-    td = TranslationData(min_freq=2)
+    td = TranslationData(min_freq=2, src_lang="de")
 
     src_voc_size, dest_voc_size, training_data_loader = td.get_training()
     model = Seq2Seq(src_voc_size, dest_voc_size).to(device)
@@ -248,6 +248,6 @@ if __name__ == '__main__':
 
         print(f"\tTrain Loss: {train_loss:7.3f} | Train PPL: {np.exp(train_loss):7.3f}")
 
-        input_tensor = td.get_tensor("The world need europe").to(device)
+        input_tensor = td.get_tensor("Ein Mann sieht sich einen Film an").to(device)
 
         print(translate_sentence(model.encoder, model.decoder, input_tensor, td.dest_vocab, device))
