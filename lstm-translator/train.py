@@ -15,7 +15,7 @@ def train_fn(model, data_loader, device):
         src = src.to(device)
         dest = dest.to(device)
 
-        output = model(src, dest[:, :-1])
+        output = model(src, dest[:, :-1], 0.75, device)
         model.zero_grad()
 
         loss = loss_func(output.transpose(1, 2), dest[:, 1:])
@@ -30,21 +30,24 @@ def train_fn(model, data_loader, device):
 
 
 def translate_sentence(encoder, decoder, src_tensor, dest_vocab: Vocab, device):
-    h, c = encoder(src_tensor)
+    model.eval()
 
-    inputs = [3]
+    with torch.no_grad():
+        h, c = encoder(src_tensor)
 
-    for i in range(10):
-        x = torch.tensor([inputs]).to(device)
-        x = decoder(x, h, c)
-        new_idx = x[0, -1].argmax()
-        inputs.append(new_idx.item())
-        if new_idx == 2:
-            break
+        inputs = [3]
 
-    result_sent = []
-    for idx in inputs[1:]:
-        result_sent.append(dest_vocab.get_itos()[idx])
+        for i in range(10):
+            x = torch.tensor([inputs]).to(device)
+            x, (h, c) = decoder(x, h, c)
+            new_idx = x[0, -1].argmax()
+            inputs.append(new_idx.item())
+            if new_idx == 2:
+                break
+
+        result_sent = []
+        for idx in inputs[1:]:
+            result_sent.append(dest_vocab.get_itos()[idx])
     return result_sent
 
 
@@ -65,12 +68,12 @@ if __name__ == '__main__':
 
     # 1 is consistent with padding index in data.py
     loss_func = torch.nn.CrossEntropyLoss(ignore_index=1)
-    optimizer = torch.optim.Adam(model.parameters())
-    for epoch in range(20):
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    for epoch in range(1000):
         train_loss = train_fn(model, training_data_loader, device)
 
         print(f"\tTrain Loss: {train_loss:7.3f} | Train PPL: {np.exp(train_loss):7.3f}")
 
-        input_tensor = td.get_tensor("what is that world").to(device)
+        input_tensor = td.get_tensor("The tendency is either excessive restraint (Europe) or a diffusion of the effort (the United States).").to(device)
 
         print(translate_sentence(model.encoder, model.decoder, input_tensor, td.dest_vocab, device))

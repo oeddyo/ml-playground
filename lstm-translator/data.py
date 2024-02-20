@@ -47,7 +47,7 @@ class TranslationData:
         ]
 
         # download dataset
-        training_set = load_dataset("wmt19", "zh-en", split="train[:10000]", trust_remote_code=True)
+        training_set = load_dataset("wmt19", "zh-en", split="train[:5]", trust_remote_code=True)
         validation_set = load_dataset("wmt19", "zh-en", split="validation[:100]", trust_remote_code=True)
 
         self.src_nlp = spacy.load("en_core_web_sm")
