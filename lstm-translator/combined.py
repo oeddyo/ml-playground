@@ -97,9 +97,6 @@ class TranslationData:
             r.append((src_text, dest_text))
         return r
 
-
-
-
     def get_validation(self):
         return DataLoader(TDataset(self.validation_set), batch_size=self.batch_size, collate_fn=collate_fn)
 
