@@ -4,12 +4,12 @@ import s2s
 import torch
 from data import TranslationData
 import numpy as np
-
+import tqdm
 
 def train_fn(model, data_loader, device):
     model.train()
     losses = []
-    for batch in data_loader:
+    for batch in tqdm.tqdm(data_loader):
         src, dest = batch
 
         src = src.to(device)
@@ -68,12 +68,12 @@ if __name__ == '__main__':
 
     # 1 is consistent with padding index in data.py
     loss_func = torch.nn.CrossEntropyLoss(ignore_index=1)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    for epoch in range(1000):
+    optimizer = torch.optim.Adam(model.parameters(),)
+    for epoch in range(20):
         train_loss = train_fn(model, training_data_loader, device)
 
         print(f"\tTrain Loss: {train_loss:7.3f} | Train PPL: {np.exp(train_loss):7.3f}")
 
-        input_tensor = td.get_tensor("The tendency is either excessive restraint (Europe) or a diffusion of the effort (the United States).").to(device)
+        input_tensor = td.get_tensor("Ein Mann sieht sich einen Film an.").to(device)
 
         print(translate_sentence(model.encoder, model.decoder, input_tensor, td.dest_vocab, device))
