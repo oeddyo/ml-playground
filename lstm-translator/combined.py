@@ -53,7 +53,7 @@ class TranslationData:
         ]
 
         # download dataset
-        training_set = load_dataset("bentrevett/multi30k", split="train", trust_remote_code=True)
+        training_set = load_dataset("bentrevett/multi30k", split="train[:10]", trust_remote_code=True)
         validation_set = load_dataset("bentrevett/multi30k", split="validation[:100]", trust_remote_code=True)
 
         self.src_nlp = spacy.load("de_core_news_sm")
@@ -128,31 +128,43 @@ class TranslationData:
 
 class Encoder(nn.Module):
 
-    def __init__(self, emb_hidden=100, voc_size=100, lstm_hidden=100):
+    def __init__(self, emb_hidden=100, voc_size=100, hidden_size=100):
         super().__init__()
         self.emb_hidden = emb_hidden
         self.voc_size = voc_size
 
+        self.dropout = nn.Dropout(0.5)
         self.emb = nn.Embedding(voc_size, emb_hidden)
-        self.lstm = nn.LSTM(emb_hidden, lstm_hidden, 2, batch_first=True, dropout=0.5)
+        self.lstm = nn.LSTM(emb_hidden, hidden_size, 2, batch_first=True, dropout=0.5)
 
     def forward(self, x):
-        x = self.emb(x)
+        x = self.dropout(self.emb(x))
         _, (h, c) = self.lstm(x)
         return h, c
 
 
 class Decoder(nn.Module):
-    def __init__(self, emb_hidden=100, dest_voc_size=100, lstm_hidden=100):
+    def __init__(self, emb_hidden=100, dest_voc_size=100, hidden_size=100):
         super().__init__()
 
         self.emb = nn.Embedding(dest_voc_size, emb_hidden)
-        self.lstm = nn.LSTM(emb_hidden, lstm_hidden, 2, batch_first=True, dropout=0.5)
-        self.affine = nn.Linear(lstm_hidden, dest_voc_size)
+        self.lstm = nn.LSTM(emb_hidden + hidden_size, hidden_size, 2, batch_first=True, dropout=0.5)
+        self.affine = nn.Linear(hidden_size + hidden_size, dest_voc_size)
+        self.dropout = nn.Dropout(0.5)
 
     def forward(self, x, h, c):
-        x = self.emb(x)
+        # [batch, seq_len, emb_hidden]
+        x = self.dropout(self.emb(x))
+
+        seq_len = x.size(1)
+        h_repeat = h[-1].unsqueeze(1).repeat(1, seq_len, 1)
+        x = torch.cat((x, h_repeat), dim=2)
+
         x, (r_h, r_c) = self.lstm(x, (h, c))
+
+        # concat 2
+        x = torch.cat((x, h_repeat), dim=2)
+
         x = self.affine(x)
         return x, (r_h, r_c)
 
@@ -160,8 +172,8 @@ class Decoder(nn.Module):
 class Seq2Seq(nn.Module):
     def __init__(self, src_voc_size, dest_voc_size):
         super().__init__()
-        self.encoder = Encoder(voc_size=src_voc_size, emb_hidden=256, lstm_hidden=512)
-        self.decoder = Decoder(dest_voc_size=dest_voc_size, emb_hidden=256, lstm_hidden=512)
+        self.encoder = Encoder(voc_size=src_voc_size, emb_hidden=256, hidden_size=512)
+        self.decoder = Decoder(dest_voc_size=dest_voc_size, emb_hidden=256, hidden_size=512)
         self.dest_voc_size = dest_voc_size
 
     def forward(self, source, target, teacher_forcing_ratio=0.5, device=torch.device("cpu")):
@@ -262,7 +274,7 @@ if __name__ == '__main__':
 
     device = select_device()
 
-    td = TranslationData(min_freq=2, src_lang="de", batch_size=128)
+    td = TranslationData(min_freq=2, src_lang="de", batch_size=512)
 
     src_voc_size, dest_voc_size, training_data_loader = td.get_training()
     validation_data_loader = td.get_validation()
