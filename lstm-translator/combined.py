@@ -38,7 +38,8 @@ def collate_fn(batch):
 
 
 class TranslationData:
-    def __init__(self, min_freq=1, max_sentence_len=200, src_lang="de", dest_lang="en"):
+    def __init__(self, min_freq=1, max_sentence_len=200, src_lang="de", dest_lang="en", batch_size=64):
+        self.batch_size = batch_size
         self.min_freq = min_freq
         self.max_sentence_len = max_sentence_len
         self.src_lang = src_lang
@@ -85,8 +86,11 @@ class TranslationData:
 
     def get_training(self):
         src_voc_size, dest_voc_size = len(self.src_vocab), len(self.dest_vocab)
-        training_loader = DataLoader(TDataset(self.training_set), batch_size=16, collate_fn=collate_fn)
+        training_loader = DataLoader(TDataset(self.training_set), batch_size=self.batch_size, collate_fn=collate_fn)
         return src_voc_size, dest_voc_size, training_loader
+
+    def get_validation(self):
+        return DataLoader(TDataset(self.validation_set), batch_size=self.batch_size, collate_fn=collate_fn)
 
     def get_tensor(self, s):
         tokens = [SOS_TOKEN] + [t.text for t in self.src_nlp.tokenizer(s)] + [EOS_TOKEN]
@@ -185,7 +189,7 @@ def train_fn(model, data_loader, device):
         src = src.to(device)
         dest = dest.to(device)
 
-        output = model(src, dest[:, :-1], 0.75, device)
+        output = model(src, dest[:, :-1], 0.5, device)
         model.zero_grad()
 
         loss = loss_func(output.transpose(1, 2), dest[:, 1:])
@@ -196,6 +200,21 @@ def train_fn(model, data_loader, device):
         loss.backward()
         optimizer.step()
 
+    return np.mean(losses)
+
+
+def validate_fn(model, data_loader, device):
+    model.eval()
+    losses = []
+    with torch.no_grad():
+        for batch in data_loader:
+            src, dest = batch
+            src = src.to(device)
+            dest = dest.to(device)
+
+            output = model(src, dest[:, :-1], 0, device)
+            loss = loss_func(output.transpose(1, 2), dest[:, 1:])
+            losses.append(loss.item())
     return np.mean(losses)
 
 
@@ -238,6 +257,8 @@ if __name__ == '__main__':
     td = TranslationData(min_freq=2, src_lang="de")
 
     src_voc_size, dest_voc_size, training_data_loader = td.get_training()
+    validation_data_loader = td.get_validation()
+
     model = Seq2Seq(src_voc_size, dest_voc_size).to(device)
 
     # 1 is consistent with padding index in data.py
@@ -245,8 +266,10 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), )
     for epoch in range(n_epoch):
         train_loss = train_fn(model, training_data_loader, device)
+        valid_loss = validate_fn(model, validation_data_loader, device)
 
         print(f"\tTrain Loss: {train_loss:7.3f} | Train PPL: {np.exp(train_loss):7.3f}")
+        print(f"\tValid Loss: {valid_loss:7.3f} | Valid PPL: {np.exp(valid_loss):7.3f}")
 
         input_tensor = td.get_tensor("Ein Mann sieht sich einen Film an").to(device)
 
