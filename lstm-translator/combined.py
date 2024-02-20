@@ -135,11 +135,11 @@ class Encoder(nn.Module):
 
         self.dropout = nn.Dropout(0.5)
         self.emb = nn.Embedding(voc_size, emb_hidden)
-        self.lstm = nn.LSTM(emb_hidden, hidden_size, 2, batch_first=True, dropout=0.5)
+        self.rnn = nn.LSTM(emb_hidden, hidden_size, 2, batch_first=True, dropout=0.5)
 
     def forward(self, x):
         x = self.dropout(self.emb(x))
-        _, (h, c) = self.lstm(x)
+        _, (h, c) = self.rnn(x)
         return h, c
 
 
@@ -148,7 +148,7 @@ class Decoder(nn.Module):
         super().__init__()
 
         self.emb = nn.Embedding(dest_voc_size, emb_hidden)
-        self.lstm = nn.LSTM(emb_hidden + hidden_size, hidden_size, 2, batch_first=True, dropout=0.5)
+        self.rnn = nn.LSTM(emb_hidden + hidden_size, hidden_size, 2, batch_first=True, dropout=0.5)
         self.affine = nn.Linear(hidden_size + hidden_size, dest_voc_size)
         self.dropout = nn.Dropout(0.5)
 
@@ -160,7 +160,7 @@ class Decoder(nn.Module):
         h_repeat = h[-1].unsqueeze(1).repeat(1, seq_len, 1)
         x = torch.cat((x, h_repeat), dim=2)
 
-        x, (r_h, r_c) = self.lstm(x, (h, c))
+        x, (r_h, r_c) = self.rnn(x, (h, c))
 
         # concat 2
         x = torch.cat((x, h_repeat), dim=2)
